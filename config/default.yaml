@@ -1,0 +1,52 @@
+server:
+  host: "0.0.0.0"
+  port: 3000
+  timeout_seconds: 30
+
+metrics:
+  enabled: true
+  port: 9090
+  path: "/metrics"
+
+tracing:
+  enabled: true
+  jaeger_endpoint: "http://localhost:14268/api/traces"
+  service_name: "project-gateway"
+
+routes:
+  # Legacy API routes - to be mirrored exactly
+  - path: "/api/v1/health"
+    method: "GET"
+    upstream: "http://localhost:8080"
+    timeout_ms: 5000
+  
+  - path: "/api/v1/users"
+    method: "GET"
+    upstream: "http://localhost:8080"
+    timeout_ms: 10000
+    
+  - path: "/api/v1/users"
+    method: "POST"
+    upstream: "http://localhost:8080"
+    timeout_ms: 15000
+
+middleware:
+  cors:
+    enabled: true
+    allow_origins: ["*"]
+    allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers: ["Content-Type", "Authorization"]
+  
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 1000
+    
+  auth:
+    enabled: true
+    jwt_secret: "your-secret-key-here"
+    
+  logging:
+    enabled: true
+    include_request_body: false
+    include_response_body: false
+

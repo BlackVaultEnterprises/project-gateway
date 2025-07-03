@@ -1,0 +1,46 @@
+[package]
+name = "project-gateway"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance Rust API Gateway - Strategic replacement for legacy infrastructure"
+authors = ["BlackVault Enterprises <blackvaultenterprises@gmail.com>"]
+
+[dependencies]
+# Web framework and HTTP server
+axum = "0.7"
+hyper = { version = "1.0", features = ["full"] }
+tokio = { version = "1.0", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace", "timeout", "compression-br"] }
+
+# Configuration and environment
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+config = "0.14"
+dotenvy = "0.15"
+
+# Observability and metrics
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+metrics = "0.23"
+metrics-exporter-prometheus = "0.15"
+opentelemetry = "0.22"
+
+# Async utilities
+futures = "0.3"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# JSON handling
+serde_json = "1.0"
+
+# Additional dependencies
+chrono = { version = "0.4", features = ["serde"] }
+prometheus = "0.13"
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }
+criterion = { version = "0.5", features = ["html_reports"] }
