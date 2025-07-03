@@ -6,7 +6,6 @@ server:
 metrics:
   enabled: true
   port: 9090
-  path: "/metrics"
 
 tracing:
   enabled: true
@@ -14,27 +13,35 @@ tracing:
   service_name: "project-gateway"
 
 mirror:
-  enabled: true
+  enabled: false
   base_url: "http://localhost:4000"
   timeout_ms: 5000
   retry_failed: true
   max_retries: 1
 
+canary_rollout:
+  enabled: true
+  rollout_percentage: 100
+  step: 5
+  max_errors: 0.5
+  monitor_latency_p99: true
+  monitor_memory_cpu: true
+  trigger_header: "X-Gateway-Version"
+  success_window_seconds: 300
+  legacy_gateway_url: "http://localhost:8080"
+  webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+
 routes:
   # Legacy API routes - to be mirrored exactly
   - path: "/api/v1/health"
     method: "GET"
-    upstream: "http://localhost:8080"
-    timeout_ms: 5000
-  
+    legacy_endpoint: "http://localhost:8080/api/v1/health"
   - path: "/api/v1/users"
     method: "GET"
-    upstream: "http://localhost:8080"
-    timeout_ms: 10000
-    
+    legacy_endpoint: "http://localhost:8080/api/v1/users"
   - path: "/api/v1/users"
     method: "POST"
-    upstream: "http://localhost:8080"
+    legacy_endpoint: "http://localhost:8080/api/v1/users"ost:8080"
     timeout_ms: 15000
 
 middleware:

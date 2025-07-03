@@ -9,8 +9,29 @@ pub struct AppConfig {
     pub metrics: MetricsConfig,
     pub tracing: TracingConfig,
     pub mirror: MirrorConfig,
+    pub canary_rollout: CanaryRolloutConfig,
     pub routes: Vec<RouteConfig>,
-    pub middleware: MiddlewareConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CanaryRolloutConfig {
+    pub enabled: bool,
+    pub rollout_percentage: f64,
+    pub step: f64,
+    pub max_errors: f64,
+    pub monitor_latency_p99: bool,
+    pub monitor_memory_cpu: bool,
+    pub trigger_header: String,
+    pub success_window_seconds: u64,
+    pub legacy_gateway_url: String,
+    pub webhook_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouteConfig {
+    pub path: String,
+    pub method: String,
+    pub legacy_endpoint: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,14 +62,6 @@ pub struct MirrorConfig {
     pub timeout_ms: u64,
     pub retry_failed: bool,
     pub max_retries: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RouteConfig {
-    pub path: String,
-    pub method: String,
-    pub upstream: String,
-    pub timeout_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

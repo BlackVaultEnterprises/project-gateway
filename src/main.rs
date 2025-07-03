@@ -21,8 +21,10 @@ use tracing::{info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
+mod gatekeeper;
 mod metrics;
 mod middleware;
+mod monitoring;
 mod routes;
 
 use config::{watcher::ConfigWatcher, AppConfig};
@@ -30,6 +32,7 @@ use config::{watcher::ConfigWatcher, AppConfig};
 #[derive(Clone)]
 pub struct AppState {
     config_watcher: Arc<ConfigWatcher>,
+    performance_monitor: Arc<monitoring::PerformanceMonitor>,
 }
 
 async fn mirror_test_handler() -> Json<Value> {
@@ -60,9 +63,13 @@ async fn main() -> Result<()> {
         .unwrap_or_else(|_| "config/default.yaml".to_string());
     let config_watcher = Arc::new(ConfigWatcher::new(&config_path, initial_config.clone())?);
     
+    // Create performance monitor
+    let performance_monitor = Arc::new(monitoring::PerformanceMonitor::new());
+    
     // Create application state
     let state = AppState { 
-        config_watcher: config_watcher.clone() 
+        config_watcher: config_watcher.clone(),
+        performance_monitor: performance_monitor.clone(),
     };
     
     // Start config reload monitoring task
@@ -72,6 +79,18 @@ async fn main() -> Result<()> {
         while let Ok(_new_config) = reload_rx.recv().await {
             info!("Configuration reloaded: server will use new settings for new connections");
         }
+    });
+    
+    // Start performance monitoring task
+    let performance_monitor_clone = performance_monitor.clone();
+    tokio::spawn(async move {
+        performance_monitor_clone.start_monitoring(60).await; // Monitor every 60 seconds
+    });
+    
+    // Start gatekeeper monitoring task
+    let gatekeeper = gatekeeper::Gatekeeper::new(state.clone());
+    tokio::spawn(async move {
+        gatekeeper.start_monitoring(30).await; // Check every 30 seconds
     });
     
     // Build the application router
@@ -122,7 +141,16 @@ async fn create_app(state: AppState) -> Result<Router<AppState>> {
         .route("/api/v1/users", post(routes::users::create_user))
         
         // Mirror test endpoint
-        .route("/mirror/test", get(mirror_test_handler));
+        .route("/mirror/test", get(mirror_test_handler))
+        
+        // Gatekeeper status endpoint
+        .route("/gatekeeper/status", get(gatekeeper_status_handler));
+
+    // Add canary routing middleware if enabled
+    if current_config.canary_rollout.enabled {
+        info!("🎯 Canary rollout enabled - {}% traffic to Rust gateway", current_config.canary_rollout.rollout_percentage);
+        app = app.layer(from_fn_with_state(state.clone(), middleware::canary::canary_routing_middleware));
+    }
 
     // Add mirror middleware if enabled
     if current_config.mirror.enabled {
@@ -144,6 +172,17 @@ async fn create_app(state: AppState) -> Result<Router<AppState>> {
         .with_state(state);
     
     Ok(app)
+}
+
+async fn gatekeeper_status_handler(State(state): State<AppState>) -> Json<Value> {
+    let gatekeeper = gatekeeper::Gatekeeper::new(state);
+    let status = gatekeeper.get_status().await;
+    
+    Json(json!({
+        "gatekeeper_status": status,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "service": "project-gateway"
+    }))
 }
 
 async fn health_check() -> Json<Value> {
