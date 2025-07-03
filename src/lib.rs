@@ -6,5 +6,5 @@ pub mod routes;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub config: Arc<config::AppConfig>,
+    pub config_watcher: Arc<config::watcher::ConfigWatcher>,
 }
