@@ -1,6 +1,5 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
@@ -80,24 +79,23 @@ impl AppConfig {
         let config_path = std::env::var("CONFIG_PATH")
             .unwrap_or_else(|_| "config/default.yaml".to_string());
         
-        let mut settings = config::Config::builder()
+        let mut builder = config::Config::builder()
             .add_source(config::File::with_name(&config_path))
-            .add_source(config::Environment::with_prefix("GATEWAY"))
-            .build()?;
+            .add_source(config::Environment::with_prefix("GATEWAY"));
         
         // Override with environment variables if present
         if let Ok(host) = std::env::var("HOST") {
-            settings.set("server.host", host)?;
+            builder = builder.set_override("server.host", host)?;
         }
         if let Ok(port) = std::env::var("PORT") {
-            settings.set("server.port", port.parse::<u16>()?)?;
+            builder = builder.set_override("server.port", port.parse::<u16>()?)?;
         }
         if let Ok(metrics_port) = std::env::var("METRICS_PORT") {
-            settings.set("metrics.port", metrics_port.parse::<u16>()?)?;
+            builder = builder.set_override("metrics.port", metrics_port.parse::<u16>()?)?;
         }
         
+        let settings = builder.build()?;
         let config: AppConfig = settings.try_deserialize()?;
         Ok(config)
     }
 }
-

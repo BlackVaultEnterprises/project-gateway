@@ -4,12 +4,12 @@ use tracing::info;
 
 use crate::AppState;
 
-pub async fn health(State(state): State<AppState>) -> Json<Value> {
+pub async fn health(State(_state): State<AppState>) -> Json<Value> {
     info!("Health check requested");
-    
+
     // TODO: Add actual health checks for upstream services
     // For now, return basic health status
-    
+
     Json(json!({
         "status": "healthy",
         "service": "project-gateway",
@@ -22,4 +22,3 @@ pub async fn health(State(state): State<AppState>) -> Json<Value> {
         }
     }))
 }
-

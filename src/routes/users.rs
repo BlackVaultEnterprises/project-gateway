@@ -1,4 +1,4 @@
-use axum::{extract::State, response::Json, http::StatusCode};
+use axum::{extract::State, http::StatusCode, response::Json};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::{info, warn};
@@ -19,12 +19,12 @@ pub struct User {
     pub created_at: String,
 }
 
-pub async fn list_users(State(state): State<AppState>) -> Json<Value> {
+pub async fn list_users(State(_state): State<AppState>) -> Json<Value> {
     info!("List users requested");
-    
+
     // TODO: Proxy to upstream service
     // For now, return mock data
-    
+
     let mock_users = vec![
         User {
             id: uuid::Uuid::new_v4().to_string(),
@@ -39,7 +39,7 @@ pub async fn list_users(State(state): State<AppState>) -> Json<Value> {
             created_at: chrono::Utc::now().to_rfc3339(),
         },
     ];
-    
+
     Json(json!({
         "users": mock_users,
         "total": mock_users.len(),
@@ -48,30 +48,29 @@ pub async fn list_users(State(state): State<AppState>) -> Json<Value> {
 }
 
 pub async fn create_user(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Json(payload): Json<CreateUserRequest>,
 ) -> Result<Json<Value>, StatusCode> {
     info!("Create user requested: {:?}", payload);
-    
+
     // TODO: Proxy to upstream service
     // For now, return mock response
-    
+
     if payload.name.is_empty() || payload.email.is_empty() {
         warn!("Invalid user creation request: missing name or email");
         return Err(StatusCode::BAD_REQUEST);
     }
-    
+
     let new_user = User {
         id: uuid::Uuid::new_v4().to_string(),
         name: payload.name,
         email: payload.email,
         created_at: chrono::Utc::now().to_rfc3339(),
     };
-    
+
     Ok(Json(json!({
         "user": new_user,
         "message": "User created successfully",
         "note": "Mock data - upstream proxy not yet implemented"
     })))
 }
-
