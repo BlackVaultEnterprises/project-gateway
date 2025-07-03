@@ -1,25 +1,27 @@
 use anyhow::Result;
 use axum::{
     http::StatusCode,
+    middleware::from_fn_with_state,
     response::Json,
     routing::{get, post},
     Router,
 };
 use metrics_exporter_prometheus::PrometheusBuilder;
 use serde_json::{json, Value};
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
-    cors::CorsLayer,
-    trace::TraceLayer,
-    timeout::TimeoutLayer,
     compression::CompressionLayer,
+    cors::CorsLayer,
+    timeout::TimeoutLayer,
+    trace::TraceLayer,
 };
-use tracing::{info, warn};
+use tracing::{info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
+mod metrics;
 mod middleware;
 mod routes;
 
@@ -28,6 +30,14 @@ use config::{watcher::ConfigWatcher, AppConfig};
 #[derive(Clone)]
 pub struct AppState {
     config_watcher: Arc<ConfigWatcher>,
+}
+
+async fn mirror_test_handler() -> Json<Value> {
+    Json(json!({
+        "message": "Mirror test endpoint",
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "note": "This request should be mirrored if mirror mode is enabled"
+    }))
 }
 
 #[tokio::main]
@@ -59,34 +69,50 @@ async fn main() -> Result<()> {
     let config_watcher_clone = config_watcher.clone();
     tokio::spawn(async move {
         let mut reload_rx = config_watcher_clone.subscribe_to_reloads();
-        while let Ok(new_config) = reload_rx.recv().await {
+        while let Ok(_new_config) = reload_rx.recv().await {
             info!("Configuration reloaded: server will use new settings for new connections");
-            // Here you could implement graceful reconfiguration of services
-            // For now, we just log the reload event
         }
     });
     
     // Build the application router
     let app = create_app(state).await?;
     
-    // Start the server
+    // Start metrics server
+    let metrics_handle = tokio::spawn(async move {
+        let metrics_addr = SocketAddr::from(([0, 0, 0, 0], 9090));
+        let metrics_app = Router::new()
+            .route("/metrics", get(metrics_handler));
+        
+        let listener = TcpListener::bind(metrics_addr).await.unwrap();
+        info!("📊 Metrics server listening on {}", metrics_addr);
+        axum::serve(listener, metrics_app).await.unwrap();
+    });
+    
+    // Start the main server
     let addr = format!("{}:{}", initial_config.server.host, initial_config.server.port);
     let listener = TcpListener::bind(&addr).await?;
     
     info!("🚀 Project Gateway starting on {}", addr);
-    info!("📊 Metrics available at http://{}:{}/metrics", 
-          initial_config.server.host, initial_config.metrics.port);
     info!("🔄 Hot-reloading enabled for configuration file: {}", config_path);
     
-    axum::serve(listener, app).await?;
+    // Start main server with graceful shutdown
+    let server_handle = tokio::spawn(async move {
+        axum::serve(listener, app.into_service())
+            .with_graceful_shutdown(shutdown_signal())
+            .await
+            .unwrap();
+    });
+    
+    // Wait for both servers
+    tokio::try_join!(server_handle, metrics_handle)?;
     
     Ok(())
 }
 
-async fn create_app(state: AppState) -> Result<Router> {
+async fn create_app(state: AppState) -> Result<Router<AppState>> {
     let current_config = state.config_watcher.get_config().await;
     
-    let app = Router::new()
+    let mut app = Router::new()
         // Health check endpoint
         .route("/health", get(health_check))
         
@@ -95,16 +121,23 @@ async fn create_app(state: AppState) -> Result<Router> {
         .route("/api/v1/users", get(routes::users::list_users))
         .route("/api/v1/users", post(routes::users::create_user))
         
-        // Metrics endpoint
-        .route("/metrics", get(metrics_handler))
-        
-        // Add middleware layers
+        // Mirror test endpoint
+        .route("/mirror/test", get(mirror_test_handler));
+
+    // Add mirror middleware if enabled
+    if current_config.mirror.enabled {
+        info!("🚨 Mirror mode enabled - target: {}", current_config.mirror.base_url);
+        app = app.layer(from_fn_with_state(state.clone(), middleware::mirror::mirror_middleware));
+    }
+
+    // Add other middleware layers
+    app = app
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
                 .layer(CorsLayer::permissive())
                 .layer(CompressionLayer::new())
-                .layer(TimeoutLayer::new(std::time::Duration::from_secs(
+                .layer(TimeoutLayer::new(Duration::from_secs(
                     current_config.server.timeout_seconds
                 )))
         )
@@ -122,7 +155,8 @@ async fn health_check() -> Json<Value> {
         "features": {
             "hot_reload": true,
             "metrics": true,
-            "tracing": true
+            "tracing": true,
+            "mirror_mode": true
         }
     }))
 }
@@ -170,4 +204,10 @@ fn init_metrics(config: &AppConfig) -> Result<()> {
     }
     
     Ok(())
+}
+
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to install CTRL+C signal handler");
 }

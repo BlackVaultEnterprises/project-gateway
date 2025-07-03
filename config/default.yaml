@@ -13,6 +13,13 @@ tracing:
   jaeger_endpoint: "http://localhost:14268/api/traces"
   service_name: "project-gateway"
 
+mirror:
+  enabled: true
+  base_url: "http://localhost:4000"
+  timeout_ms: 5000
+  retry_failed: true
+  max_retries: 1
+
 routes:
   # Legacy API routes - to be mirrored exactly
   - path: "/api/v1/health"

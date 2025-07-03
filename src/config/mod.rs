@@ -8,6 +8,7 @@ pub struct AppConfig {
     pub server: ServerConfig,
     pub metrics: MetricsConfig,
     pub tracing: TracingConfig,
+    pub mirror: MirrorConfig,
     pub routes: Vec<RouteConfig>,
     pub middleware: MiddlewareConfig,
 }
@@ -31,6 +32,15 @@ pub struct TracingConfig {
     pub enabled: bool,
     pub jaeger_endpoint: String,
     pub service_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MirrorConfig {
+    pub enabled: bool,
+    pub base_url: String,
+    pub timeout_ms: u64,
+    pub retry_failed: bool,
+    pub max_retries: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

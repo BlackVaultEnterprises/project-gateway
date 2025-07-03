@@ -1,6 +1,5 @@
-// Placeholder for middleware modules
-// TODO: Implement authentication, rate limiting, and other middleware
-
+// Middleware modules
 pub mod auth;
 pub mod logging;
+pub mod mirror;
 pub mod rate_limit;
