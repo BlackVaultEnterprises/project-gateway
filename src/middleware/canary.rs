@@ -1,14 +1,13 @@
 use axum::{
     body::Body,
     extract::State,
-    http::{Request, Response, HeaderMap, StatusCode},
+    http::{Request, Response, StatusCode},
     middleware::Next,
-    response::Json,
 };
-use serde_json::{json, Value};
-use std::{sync::Arc, time::Instant};
+use serde_json::json;
+use std::time::Instant;
 use tokio::time::timeout;
-use tracing::{info, warn, error};
+use tracing::{info, error};
 
 use crate::{config::CanaryRolloutConfig, AppState};
 

@@ -1,11 +1,10 @@
 use std::{
-    collections::HashMap,
     sync::{Arc, Mutex},
-    time::{Duration, Instant},
+    time::Duration,
 };
 use serde::{Deserialize, Serialize};
 use tokio::time::interval;
-use tracing::{info, warn, error};
+use tracing::{info, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceMetrics {

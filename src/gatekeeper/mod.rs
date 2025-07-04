@@ -5,6 +5,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use tokio::time::interval;
 use tracing::{info, warn, error};
+use utoipa::ToSchema;
 
 use crate::{
     config::CanaryRolloutConfig,
@@ -12,7 +13,7 @@ use crate::{
     AppState,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct GatekeeperStatus {
     pub is_healthy: bool,
     pub current_rollout_percentage: f64,

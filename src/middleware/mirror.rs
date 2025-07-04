@@ -1,14 +1,14 @@
 use axum::{
     body::Body,
     extract::State,
-    http::{Request, Response, HeaderValue},
+    http::{Request, Response},
     middleware::Next,
 };
-use std::sync::Arc;
-use tokio::time::Instant;
-use tracing::{error, info};
+use std::time::Instant;
+use tokio::time::timeout;
+use tracing::{info, error};
 
-use crate::{config::watcher::ConfigWatcher, metrics::MIRROR_METRICS, AppState};
+use crate::{metrics::MIRROR_METRICS, AppState};
 
 pub async fn mirror_middleware(
     State(state): State<AppState>,

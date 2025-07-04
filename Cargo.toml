@@ -13,6 +13,10 @@ tokio = { version = "1.0", features = ["full"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "trace", "timeout", "compression-br"] }
 
+# OpenAPI and documentation
+utoipa = { version = "4.0", features = ["axum_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "6.0", features = ["axum"] }
+
 # Configuration and environment
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
